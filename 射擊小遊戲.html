@@ -141,7 +141,7 @@
         function drawScene() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // 地面
+            // 1. 地面
             ctx.beginPath();
             ctx.moveTo(0, groundY);
             ctx.lineTo(canvas.width, groundY);
@@ -149,45 +149,7 @@
             ctx.lineWidth = 3;
             ctx.stroke();
 
-            // 玩家 A
-            ctx.strokeStyle = '#2980b9';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(playerA.x - 35, groundY - 50, 10, 0, Math.PI * 2); 
-            ctx.moveTo(playerA.x - 35, groundY - 40); ctx.lineTo(playerA.x - 35, groundY - 15); 
-            ctx.moveTo(playerA.x - 35, groundY - 30); ctx.lineTo(playerA.x - 15, groundY - 35); 
-            ctx.moveTo(playerA.x - 35, groundY - 15); ctx.lineTo(playerA.x - 45, groundY); 
-            ctx.moveTo(playerA.x - 35, groundY - 15); ctx.lineTo(playerA.x - 25, groundY); 
-            ctx.stroke();
-            ctx.fillStyle = '#2980b9';
-            ctx.font = 'bold 14px Arial';
-            ctx.fillText("A", playerA.x - 40, groundY - 68);
-
-            // 大砲
-            ctx.fillStyle = '#7f8c8d';
-            ctx.fillRect(playerA.x - 12, groundY - 12, 24, 12); 
-            
-            ctx.save();
-            ctx.translate(playerA.x, groundY - 12);
-            const currentRad = -angleInput.value * Math.PI / 180;
-            ctx.rotate(currentRad);
-            ctx.fillStyle = '#34495e';
-            ctx.fillRect(0, -6, 35, 12); 
-            ctx.restore();
-
-            // 目標 B
-            ctx.strokeStyle = '#e74c3c';
-            ctx.beginPath();
-            ctx.arc(targetB.x, groundY - 50, 10, 0, Math.PI * 2); 
-            ctx.moveTo(targetB.x, groundY - 40); ctx.lineTo(targetB.x, groundY - 15); 
-            ctx.moveTo(targetB.x, groundY - 30); ctx.lineTo(targetB.x - 10, groundY - 25); 
-            ctx.moveTo(targetB.x, groundY - 15); ctx.lineTo(targetB.x - 10, groundY); 
-            ctx.moveTo(targetB.x, groundY - 15); ctx.lineTo(targetB.x + 10, groundY); 
-            ctx.stroke();
-            ctx.fillStyle = '#e74c3c';
-            ctx.fillText("B", targetB.x - 5, groundY - 68);
-
-            // 軌跡虛線
+            // 2. 軌跡虛線
             if (projectile.trail.length > 1) {
                 ctx.beginPath();
                 ctx.setLineDash([6, 6]);
@@ -200,7 +162,47 @@
                 ctx.setLineDash([]); 
             }
 
-            // 砲彈
+            // 3. 大砲底座與砲管（先畫大砲，才不會蓋住人）
+            ctx.fillStyle = '#7f8c8d';
+            ctx.fillRect(playerA.x - 12, groundY - 12, 24, 12); 
+            
+            ctx.save();
+            ctx.translate(playerA.x, groundY - 12);
+            const currentRad = -angleInput.value * Math.PI / 180;
+            ctx.rotate(currentRad);
+            ctx.fillStyle = '#34495e';
+            ctx.fillRect(0, -6, 35, 12); 
+            ctx.restore();
+
+            // 4. 玩家 A（後畫，且往左移開，確保絕對不被擋住）
+            ctx.strokeStyle = '#2980b9';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(playerA.x - 55, groundY - 50, 10, 0, Math.PI * 2); 
+            ctx.moveTo(playerA.x - 55, groundY - 40); ctx.lineTo(playerA.x - 55, groundY - 15); 
+            ctx.moveTo(playerA.x - 55, groundY - 30); ctx.lineTo(playerA.x - 35, groundY - 35); 
+            ctx.moveTo(playerA.x - 55, groundY - 15); ctx.lineTo(playerA.x - 65, groundY); 
+            ctx.moveTo(playerA.x - 55, groundY - 15); ctx.lineTo(playerA.x - 45, groundY); 
+            ctx.stroke();
+            ctx.fillStyle = '#2980b9';
+            ctx.font = 'bold 16px Arial';
+            ctx.fillText("A", playerA.x - 60, groundY - 68);
+
+            // 5. 目標 B
+            ctx.strokeStyle = '#e74c3c';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(targetB.x, groundY - 50, 10, 0, Math.PI * 2); 
+            ctx.moveTo(targetB.x, groundY - 40); ctx.lineTo(targetB.x, groundY - 15); 
+            ctx.moveTo(targetB.x, groundY - 30); ctx.lineTo(targetB.x - 10, groundY - 25); 
+            ctx.moveTo(targetB.x, groundY - 15); ctx.lineTo(targetB.x - 10, groundY); 
+            ctx.moveTo(targetB.x, groundY - 15); ctx.lineTo(targetB.x + 10, groundY); 
+            ctx.stroke();
+            ctx.fillStyle = '#e74c3c';
+            ctx.font = 'bold 16px Arial';
+            ctx.fillText("B", targetB.x - 5, groundY - 68);
+
+            // 6. 砲彈
             if (projectile.active) {
                 ctx.beginPath();
                 ctx.arc(projectile.x, projectile.y, 7, 0, Math.PI * 2);
