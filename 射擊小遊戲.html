@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>斜向拋射射擊小遊戲 - 絲滑流暢版</title>
+    <title>斜向拋射射擊小遊戲 - 終極絲滑完美版</title>
     <style>
         body {
             margin: 0;
@@ -178,7 +178,7 @@
         
         const cannonBase = { x: 80, y: groundY };
         const playerA = { offsetX: -55, offsetY: 0 };
-        const moveSpeed = 9; // 核心修改：大幅提高移動速度
+        const moveSpeed = 9; 
 
         let targetB = { x: 650, y: groundY };
 
@@ -204,7 +204,6 @@
             const btn = document.getElementById(btnId);
             if (!btn) return;
             
-            // 同時支援手機滑動與滑鼠點擊
             btn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 touchStates[direction] = true;
@@ -335,4 +334,67 @@
 
             projectile.x = cannonBase.x;
             projectile.y = groundY - 12;
-            projectile.startX = cannonBase.x;
+            projectile.startX = cannonBase.x; 
+            projectile.v0 = v0;
+            projectile.angle = theta;
+            projectile.t = 0;
+            projectile.active = true;
+            projectile.trail = [];
+            
+            message.innerText = "💥 🚀 砲彈飛行中...";
+            fireBtn.disabled = true;
+        };
+
+        // 核心修正：將 updatePhysics 接回主循環內，讓它能正常計算並讓砲彈飛出去！
+        function updatePhysics() {
+            if (!projectile.active) return;
+
+            projectile.t += 0.16; 
+            const t = projectile.t;
+            const v0 = projectile.v0;
+            const theta = projectile.angle;
+
+            const deltaX = v0 * Math.cos(theta) * t;
+            const deltaY = (v0 * Math.sin(theta) * t) - (0.5 * g * t * t);
+
+            projectile.x = projectile.startX + deltaX;
+            projectile.y = (groundY - 12) - deltaY;
+
+            projectile.trail.push({ x: projectile.x, y: projectile.y });
+
+            const distX = projectile.x - targetB.x;
+            const distY = projectile.y - (groundY - 30); 
+            const distance = Math.sqrt(distX * distX + distY * distY);
+
+            if (distance < 28) {
+                message.innerHTML = "🎉 <span style='color:green;'>完美擊中目標 B！太強了！</span>";
+                projectile.active = false;
+                fireBtn.disabled = false;
+                setTimeout(() => {
+                    resetTarget();
+                    message.innerText = "目標已重置，再試一次吧！";
+                }, 1800);
+                return;
+            }
+
+            if (projectile.y >= groundY || projectile.x > canvas.width || projectile.x < 0) {
+                message.innerHTML = "❌ <span style='color:red;'>落空了！調整位置、角度再試一次。</span>";
+                projectile.active = false;
+                fireBtn.disabled = false;
+                return;
+            }
+        }
+
+        resetTarget();
+        
+        function gameLoop() {
+            handleMovement();
+            updatePhysics(); // 確保每影格都在主循環內被執行
+            drawScene();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
