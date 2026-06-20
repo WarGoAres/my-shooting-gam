@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>斜向拋射射擊小遊戲 - 角色可移動版</title>
+    <title>斜向拋射射擊小遊戲 - 手機電腦雙支援</title>
     <style>
         body {
             margin: 0;
@@ -13,44 +13,52 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
+            min-height: 100vh;
             color: #333;
+            padding: 10px;
+            box-sizing: border-box;
         }
         h2 {
             margin: 0 0 5px 0;
             color: #2c3e50;
+            font-size: 20px;
         }
         .subtitle {
-            margin: 0 0 20px 0;
+            margin: 0 0 10px 0;
             color: #7f8c8d;
-            font-size: 14px;
+            font-size: 12px;
+            text-align: center;
         }
         #gameCanvas {
             background-color: #ffffff;
             border: 3px solid #34495e;
             border-radius: 8px;
             box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            max-width: 100%;
+            height: auto;
         }
         .controls {
-            margin-top: 20px;
+            margin-top: 10px;
             display: flex;
-            gap: 25px;
+            gap: 15px;
             background: #fff;
-            padding: 15px 25px;
+            padding: 10px 20px;
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
             border: 1px solid #e2e8f0;
+            flex-wrap: wrap;
+            justify-content: center;
         }
         .control-group {
             display: flex;
             flex-direction: column;
             align-items: center;
-            min-width: 120px;
+            min-width: 100px;
         }
         label {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
-            margin-bottom: 8px;
+            margin-bottom: 5px;
             color: #4a5568;
         }
         input[type="range"] {
@@ -58,13 +66,13 @@
             cursor: pointer;
         }
         button {
-            padding: 10px 24px;
+            padding: 10px 20px;
             background-color: #3498db;
             color: white;
             border: none;
             border-radius: 6px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: bold;
             transition: background 0.2s, transform 0.1s;
         }
@@ -79,18 +87,52 @@
             cursor: not-allowed;
         }
         #message {
-            margin-top: 15px;
-            font-size: 16px;
+            margin-top: 10px;
+            font-size: 14px;
             font-weight: 500;
             color: #2c3e50;
-            height: 24px;
+            height: 20px;
+            text-align: center;
+        }
+        
+        /* 手機虛擬按鍵樣式 */
+        .mobile-joystick {
+            margin-top: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+        .joy-row {
+            display: flex;
+            gap: 10px;
+        }
+        .joy-btn {
+            width: 55px;
+            height: 55px;
+            background-color: #34495e;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 20px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        .joy-btn:active {
+            background-color: #16a085;
+            transform: scale(0.92);
         }
     </style>
 </head>
 <body>
 
     <h2>斜向拋射射擊小遊戲</h2>
-    <div class="subtitle">使用鍵盤 WASD 或 方向鍵 移動角色 A | 公式：x = V₀cosθ·t, y = V₀sinθ·t - ½gt²</div>
+    <div class="subtitle">電腦用 WASD 移動 | 手機用下方按鈕移動</div>
 
     <canvas id="gameCanvas" width="800" height="400"></canvas>
 
@@ -108,7 +150,18 @@
         </div>
     </div>
 
-    <div id="message">使用鍵盤 WASD 移動角色 A，調整角度與初速，擊中右邊的目標 B 吧！</div>
+    <div class="mobile-joystick">
+        <div class="joy-row">
+            <button class="joy-btn" id="btnUp">↑</button>
+        </div>
+        <div class="joy-row">
+            <button class="joy-btn" id="btnLeft">←</button>
+            <button class="joy-btn" id="btnDown">↓</button>
+            <button class="joy-btn" id="btnRight">→</button>
+        </div>
+    </div>
+
+    <div id="message">擊中右邊的目標 B 吧！</div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
@@ -124,12 +177,9 @@
         const g = 9.8; 
         const groundY = 330;
         
-        // 核心修改：定義大砲的基準點
         const cannonBase = { x: 80, y: groundY };
-        
-        // 核心修改：角色 A 的位置初始值（相對於大砲基準點偏左）
         const playerA = { offsetX: -55, offsetY: 0 };
-        const moveSpeed = 5; // 移動速度
+        const moveSpeed = 5;
 
         let targetB = { x: 650, y: groundY };
 
@@ -137,18 +187,41 @@
             x: 0, y: 0, v0: 0, angle: 0, t: 0, active: false, trail: []
         };
 
-        // 鍵盤狀態紀錄
         const keys = {};
 
-        // 監聽鍵盤按下與放開
+        // 鍵盤監聽
         window.addEventListener('keydown', (e) => {
             keys[e.key.toLowerCase()] = true;
-            // 防止瀏覽器按方向鍵時網頁跟著滾動
             if(["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(e.key)) {
                 e.preventDefault();
             }
         });
         window.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
+
+        // 手機按鈕狀態監聽
+        const touchStates = { up: false, down: false, left: false, right: false };
+        
+        function bindTouch(btnId, direction) {
+            const btn = document.getElementById(btnId);
+            // 支援手機觸控與滑鼠點擊
+            const startEvent = 'ontouchstart' in window ? 'touchstart' : 'mousedown';
+            const endEvent = 'ontouchstyle' in window ? 'touchend' : 'mouseup';
+            
+            btn.addEventListener(startEvent, (e) => {
+                e.preventDefault();
+                touchStates[direction] = true;
+            });
+            btn.addEventListener(endEvent, (e) => {
+                e.preventDefault();
+                touchStates[direction] = false;
+            });
+            btn.addEventListener('mouseleave', () => touchStates[direction] = false);
+        }
+
+        bindTouch('btnUp', 'up');
+        bindTouch('btnDown', 'down');
+        bindTouch('btnLeft', 'left');
+        bindTouch('btnRight', 'right');
 
         angleInput.oninput = () => angleVal.innerText = angleInput.value;
         velocityInput.oninput = () => velocityVal.innerText = velocityInput.value;
@@ -157,21 +230,20 @@
             targetB.x = Math.floor(Math.random() * (740 - 450) + 450); 
         }
 
-        // 處理角色與大砲移動邏輯
         function handleMovement() {
-            // 左右移動 (A / D 或 左右方向鍵)
-            if (keys['a'] || keys['arrowleft']) {
+            // 左右移動 (支援鍵盤與手機按鈕)
+            if (keys['a'] || keys['arrowleft'] || touchStates['left']) {
                 if (cannonBase.x > 30) cannonBase.x -= moveSpeed;
             }
-            if (keys['d'] || keys['arrowright']) {
-                if (cannonBase.x < 350) cannonBase.x += moveSpeed; // 限制最遠只能走到畫面中間偏左
+            if (keys['d'] || keys['arrowright'] || touchStates['right']) {
+                if (cannonBase.x < 350) cannonBase.x += moveSpeed;
             }
-            // 上下移動 (W / S 或 上下方向鍵)
-            if (keys['w'] || keys['arrowup']) {
-                if (playerA.offsetY > -100) playerA.offsetY -= moveSpeed; // 限制往上跳/飛的高度
+            // 上下移動 (支援鍵盤與手機按鈕)
+            if (keys['w'] || keys['arrowup'] || touchStates['up']) {
+                if (playerA.offsetY > -100) playerA.offsetY -= moveSpeed;
             }
-            if (keys['s'] || keys['arrowdown']) {
-                if (playerA.offsetY < 0) playerA.offsetY += moveSpeed; // 回到地面
+            if (keys['s'] || keys['arrowdown'] || touchStates['down']) {
+                if (playerA.offsetY < 0) playerA.offsetY += moveSpeed;
             }
         }
 
@@ -199,7 +271,7 @@
                 ctx.setLineDash([]); 
             }
 
-            // 3. 大砲底座與砲管（隨著 cannonBase 位置改變）
+            // 3. 大砲底座與砲管
             ctx.fillStyle = '#7f8c8d';
             ctx.fillRect(cannonBase.x - 12, groundY - 12, 24, 12); 
             
@@ -211,7 +283,7 @@
             ctx.fillRect(0, -6, 35, 12); 
             ctx.restore();
 
-            // 4. 玩家 A（位置會隨著移動加成改變，包含垂直和水平位移）
+            // 4. 玩家 A
             const curAx = cannonBase.x + playerA.offsetX;
             const curAy = groundY + playerA.offsetY;
 
@@ -220,7 +292,7 @@
             ctx.beginPath();
             ctx.arc(curAx, curAy - 50, 10, 0, Math.PI * 2); 
             ctx.moveTo(curAx, curAy - 40); ctx.lineTo(curAx, curAy - 15); 
-            ctx.moveTo(curAx, curAy - 30); ctx.lineTo(curAx + 20, curAy - 35); // 伸出手推大砲的感覺
+            ctx.moveTo(curAx, curAy - 30); ctx.lineTo(curAx + 20, curAy - 35); 
             ctx.moveTo(curAx, curAy - 15); ctx.lineTo(curAx - 10, curAy); 
             ctx.moveTo(curAx, curAy - 15); ctx.lineTo(curAx + 10, curAy); 
             ctx.stroke();
@@ -258,10 +330,9 @@
             const theta = angleInput.value * Math.PI / 180;
             const v0 = velocityInput.value;
 
-            // 砲彈從大砲目前的位置發射
             projectile.x = cannonBase.x;
             projectile.y = groundY - 12;
-            projectile.startX = cannonBase.x; // 記錄發射起點
+            projectile.startX = cannonBase.x; 
             projectile.v0 = v0;
             projectile.angle = theta;
             projectile.t = 0;
@@ -290,7 +361,6 @@
 
             projectile.trail.push({ x: projectile.x, y: projectile.y });
 
-            // 碰撞檢測
             const distX = projectile.x - targetB.x;
             const distY = projectile.y - (groundY - 30); 
             const distance = Math.sqrt(distX * distX + distY * distY);
@@ -312,13 +382,10 @@
                 fireBtn.disabled = false;
                 return;
             }
-
-            // 飛行中不重複呼叫 drawScene，由主循環處理
         }
 
         resetTarget();
         
-        // 遊戲主循環：每 30 毫秒同時處理「移動」與「畫面重繪」
         setInterval(() => {
             handleMovement();
             drawScene();
