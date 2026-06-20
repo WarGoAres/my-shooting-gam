@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>斜向拋射射擊小遊戲 - 手機電腦雙支援</title>
+    <title>斜向拋射射擊小遊戲 - 絲滑流暢版</title>
     <style>
         body {
             margin: 0;
@@ -95,7 +95,7 @@
             text-align: center;
         }
         
-        /* 手機虛擬按鍵樣式 */
+        /* 手機按鈕樣式 */
         .mobile-joystick {
             margin-top: 15px;
             display: flex;
@@ -108,13 +108,13 @@
             gap: 10px;
         }
         .joy-btn {
-            width: 55px;
-            height: 55px;
+            width: 60px;
+            height: 60px;
             background-color: #34495e;
             color: white;
             border: none;
             border-radius: 50%;
-            font-size: 20px;
+            font-size: 24px;
             font-weight: bold;
             display: flex;
             align-items: center;
@@ -125,7 +125,6 @@
         }
         .joy-btn:active {
             background-color: #16a085;
-            transform: scale(0.92);
         }
     </style>
 </head>
@@ -179,7 +178,7 @@
         
         const cannonBase = { x: 80, y: groundY };
         const playerA = { offsetX: -55, offsetY: 0 };
-        const moveSpeed = 5;
+        const moveSpeed = 9; // 核心修改：大幅提高移動速度
 
         let targetB = { x: 650, y: groundY };
 
@@ -198,23 +197,29 @@
         });
         window.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
 
-        // 手機按鈕狀態監聽
+        // 手機監聽狀態
         const touchStates = { up: false, down: false, left: false, right: false };
         
         function bindTouch(btnId, direction) {
             const btn = document.getElementById(btnId);
-            // 支援手機觸控與滑鼠點擊
-            const startEvent = 'ontouchstart' in window ? 'touchstart' : 'mousedown';
-            const endEvent = 'ontouchstyle' in window ? 'touchend' : 'mouseup';
+            if (!btn) return;
             
-            btn.addEventListener(startEvent, (e) => {
+            // 同時支援手機滑動與滑鼠點擊
+            btn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 touchStates[direction] = true;
-            });
-            btn.addEventListener(endEvent, (e) => {
+            }, { passive: false });
+            
+            btn.addEventListener('touchend', (e) => {
                 e.preventDefault();
                 touchStates[direction] = false;
+            }, { passive: false });
+
+            btn.addEventListener('mousedown', (e) => {
+                touchStates[direction] = true;
             });
+            
+            btn.addEventListener('mouseup', () => touchStates[direction] = false);
             btn.addEventListener('mouseleave', () => touchStates[direction] = false);
         }
 
@@ -231,14 +236,12 @@
         }
 
         function handleMovement() {
-            // 左右移動 (支援鍵盤與手機按鈕)
             if (keys['a'] || keys['arrowleft'] || touchStates['left']) {
                 if (cannonBase.x > 30) cannonBase.x -= moveSpeed;
             }
             if (keys['d'] || keys['arrowright'] || touchStates['right']) {
                 if (cannonBase.x < 350) cannonBase.x += moveSpeed;
             }
-            // 上下移動 (支援鍵盤與手機按鈕)
             if (keys['w'] || keys['arrowup'] || touchStates['up']) {
                 if (playerA.offsetY > -100) playerA.offsetY -= moveSpeed;
             }
@@ -271,7 +274,7 @@
                 ctx.setLineDash([]); 
             }
 
-            // 3. 大砲底座與砲管
+            // 3. 大砲
             ctx.fillStyle = '#7f8c8d';
             ctx.fillRect(cannonBase.x - 12, groundY - 12, 24, 12); 
             
@@ -332,64 +335,4 @@
 
             projectile.x = cannonBase.x;
             projectile.y = groundY - 12;
-            projectile.startX = cannonBase.x; 
-            projectile.v0 = v0;
-            projectile.angle = theta;
-            projectile.t = 0;
-            projectile.active = true;
-            projectile.trail = [];
-            
-            message.innerText = "💥 🚀 砲彈飛行中...";
-            fireBtn.disabled = true;
-            
-            updatePhysics();
-        };
-
-        function updatePhysics() {
-            if (!projectile.active) return;
-
-            projectile.t += 0.16; 
-            const t = projectile.t;
-            const v0 = projectile.v0;
-            const theta = projectile.angle;
-
-            const deltaX = v0 * Math.cos(theta) * t;
-            const deltaY = (v0 * Math.sin(theta) * t) - (0.5 * g * t * t);
-
-            projectile.x = projectile.startX + deltaX;
-            projectile.y = (groundY - 12) - deltaY;
-
-            projectile.trail.push({ x: projectile.x, y: projectile.y });
-
-            const distX = projectile.x - targetB.x;
-            const distY = projectile.y - (groundY - 30); 
-            const distance = Math.sqrt(distX * distX + distY * distY);
-
-            if (distance < 28) {
-                message.innerHTML = "🎉 <span style='color:green;'>完美擊中目標 B！太強了！</span>";
-                projectile.active = false;
-                fireBtn.disabled = false;
-                setTimeout(() => {
-                    resetTarget();
-                    message.innerText = "目標已重置，再試一次吧！";
-                }, 1800);
-                return;
-            }
-
-            if (projectile.y >= groundY || projectile.x > canvas.width || projectile.x < 0) {
-                message.innerHTML = "❌ <span style='color:red;'>落空了！調整位置、角度再試一次。</span>";
-                projectile.active = false;
-                fireBtn.disabled = false;
-                return;
-            }
-        }
-
-        resetTarget();
-        
-        setInterval(() => {
-            handleMovement();
-            drawScene();
-        }, 30);
-    </script>
-</body>
-</html>
+            projectile.startX = cannonBase.x;
