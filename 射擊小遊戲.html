@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>斜向拋射射擊小遊戲</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #f5f7fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            color: #333;
+        }
+        h2 {
+            margin: 0 0 5px 0;
+            color: #2c3e50;
+        }
+        .subtitle {
+            margin: 0 0 20px 0;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        #gameCanvas {
+            background-color: #ffffff;
+            border: 3px solid #34495e;
+            border-radius: 8px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 25px;
+            background: #fff;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border: 1px solid #e2e8f0;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 120px;
+        }
+        label {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #4a5568;
+        }
+        input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+        }
+        button {
+            padding: 10px 24px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background 0.2s, transform 0.1s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        #message {
+            margin-top: 15px;
+            font-size: 16px;
+            font-weight: 500;
+            color: #2c3e50;
+            height: 24px;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>斜向拋射射擊小遊戲</h2>
+    <div class="subtitle">根據隨手畫的物理公式公式計算：x = V₀cosθ·t, y = V₀sinθ·t - ½gt²</div>
+
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+
+    <div class="controls">
+        <div class="control-group">
+            <label for="angle">角度 (&theta;): <span id="angleVal">45</span>&deg;</label>
+            <input type="range" id="angle" min="0" max="90" value="45">
+        </div>
+        <div class="control-group">
+            <label for="velocity">初速 ($V_0$): <span id="velocityVal">60</span></label>
+            <input type="range" id="velocity" min="20" max="100" value="60">
+        </div>
+        <div class="control-group" style="justify-content: center;">
+            <button id="fireBtn">發射大砲！</button>
+        </div>
+    </div>
+
+    <div id="message">調整角度與初速，擊中右邊的目標 B 吧！</div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const angleInput = document.getElementById('angle');
+        const velocityInput = document.getElementById('velocity');
+        const angleVal = document.getElementById('angleVal');
+        const velocityVal = document.getElementById('velocityVal');
+        const fireBtn = document.getElementById('fireBtn');
+        const message = document.getElementById('message');
+
+        const g = 9.8; 
+        const groundY = 330;
+        
+        const playerA = { x: 80, y: groundY };
+        let targetB = { x: 650, y: groundY };
+
+        let projectile = {
+            x: 0, y: 0, v0: 0, angle: 0, t: 0, active: false, trail: []
+        };
+
+        angleInput.oninput = () => angleVal.innerText = angleInput.value;
+        velocityInput.oninput = () => velocityVal.innerText = velocityInput.value;
+
+        function resetTarget() {
+            targetB.x = Math.floor(Math.random() * (740 - 450) + 450); 
+        }
+
+        function drawScene() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 地面
+            ctx.beginPath();
+            ctx.moveTo(0, groundY);
+            ctx.lineTo(canvas.width, groundY);
+            ctx.strokeStyle = '#34495e';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // 玩家 A
+            ctx.strokeStyle = '#2980b9';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(playerA.x - 35, groundY - 50, 10, 0, Math.PI * 2); 
+            ctx.moveTo(playerA.x - 35, groundY - 40); ctx.lineTo(playerA.x - 35, groundY - 15); 
+            ctx.moveTo(playerA.x - 35, groundY - 30); ctx.lineTo(playerA.x - 15, groundY - 35); 
+            ctx.moveTo(playerA.x - 35, groundY - 15); ctx.lineTo(playerA.x - 45, groundY); 
+            ctx.moveTo(playerA.x - 35, groundY - 15); ctx.lineTo(playerA.x - 25, groundY); 
+            ctx.stroke();
+            ctx.fillStyle = '#2980b9';
+            ctx.font = 'bold 14px Arial';
+            ctx.fillText("A", playerA.x - 40, groundY - 68);
+
+            // 大砲
+            ctx.fillStyle = '#7f8c8d';
+            ctx.fillRect(playerA.x - 12, groundY - 12, 24, 12); 
+            
+            ctx.save();
+            ctx.translate(playerA.x, groundY - 12);
+            const currentRad = -angleInput.value * Math.PI / 180;
+            ctx.rotate(currentRad);
+            ctx.fillStyle = '#34495e';
+            ctx.fillRect(0, -6, 35, 12); 
+            ctx.restore();
+
+            // 目標 B
+            ctx.strokeStyle = '#e74c3c';
+            ctx.beginPath();
+            ctx.arc(targetB.x, groundY - 50, 10, 0, Math.PI * 2); 
+            ctx.moveTo(targetB.x, groundY - 40); ctx.lineTo(targetB.x, groundY - 15); 
+            ctx.moveTo(targetB.x, groundY - 30); ctx.lineTo(targetB.x - 10, groundY - 25); 
+            ctx.moveTo(targetB.x, groundY - 15); ctx.lineTo(targetB.x - 10, groundY); 
+            ctx.moveTo(targetB.x, groundY - 15); ctx.lineTo(targetB.x + 10, groundY); 
+            ctx.stroke();
+            ctx.fillStyle = '#e74c3c';
+            ctx.fillText("B", targetB.x - 5, groundY - 68);
+
+            // 軌跡虛線
+            if (projectile.trail.length > 1) {
+                ctx.beginPath();
+                ctx.setLineDash([6, 6]);
+                ctx.strokeStyle = '#bdc3c7';
+                ctx.moveTo(projectile.trail[0].x, projectile.trail[0].y);
+                for (let i = 1; i < projectile.trail.length; i++) {
+                    ctx.lineTo(projectile.trail[i].x, projectile.trail[i].y);
+                }
+                ctx.stroke();
+                ctx.setLineDash([]); 
+            }
+
+            // 砲彈
+            if (projectile.active) {
+                ctx.beginPath();
+                ctx.arc(projectile.x, projectile.y, 7, 0, Math.PI * 2);
+                ctx.fillStyle = '#d35400';
+                ctx.fill();
+            }
+        }
+
+        fireBtn.onclick = () => {
+            if (projectile.active) return;
+
+            const theta = angleInput.value * Math.PI / 180;
+            const v0 = velocityInput.value;
+
+            projectile.x = playerA.x;
+            projectile.y = groundY - 12;
+            projectile.v0 = v0;
+            projectile.angle = theta;
+            projectile.t = 0;
+            projectile.active = true;
+            projectile.trail = [];
+            
+            message.innerText = "💥 🚀 砲彈飛行中...";
+            fireBtn.disabled = true;
+            
+            updatePhysics();
+        };
+
+        function updatePhysics() {
+            if (!projectile.active) return;
+
+            projectile.t += 0.16; 
+            const t = projectile.t;
+            const v0 = projectile.v0;
+            const theta = projectile.angle;
+
+            const deltaX = v0 * Math.cos(theta) * t;
+            const deltaY = (v0 * Math.sin(theta) * t) - (0.5 * g * t * t);
+
+            projectile.x = playerA.x + deltaX;
+            projectile.y = (groundY - 12) - deltaY;
+
+            projectile.trail.push({ x: projectile.x, y: projectile.y });
+
+            // 碰撞檢測
+            const distX = projectile.x - targetB.x;
+            const distY = projectile.y - (groundY - 30); 
+            const distance = Math.sqrt(distX * distX + distY * distY);
+
+            if (distance < 28) {
+                message.innerHTML = "🎉 <span style='color:green;'>完美擊中目標 B！太強了！</span>";
+                projectile.active = false;
+                fireBtn.disabled = false;
+                setTimeout(() => {
+                    resetTarget();
+                    message.innerText = "目標已重置，再試一次吧！";
+                    drawScene();
+                }, 1800);
+                return;
+            }
+
+            if (projectile.y >= groundY || projectile.x > canvas.width || projectile.x < 0) {
+                message.innerHTML = "❌ <span style='color:red;'>落空了！調整角度或初速再試一次。</span>";
+                projectile.active = false;
+                fireBtn.disabled = false;
+                return;
+            }
+
+            drawScene();
+            requestAnimationFrame(updatePhysics);
+        }
+
+        resetTarget();
+        setInterval(() => {
+            if (!projectile.active) drawScene();
+        }, 30);
+    </script>
+</body>
+</html>
