@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>斜向拋射射擊小遊戲</title>
+    <title>斜向拋射射擊小遊戲 - 角色可移動版</title>
     <style>
         body {
             margin: 0;
@@ -90,7 +90,7 @@
 <body>
 
     <h2>斜向拋射射擊小遊戲</h2>
-    <div class="subtitle">根據隨手畫的物理公式公式計算：x = V₀cosθ·t, y = V₀sinθ·t - ½gt²</div>
+    <div class="subtitle">使用鍵盤 WASD 或 方向鍵 移動角色 A | 公式：x = V₀cosθ·t, y = V₀sinθ·t - ½gt²</div>
 
     <canvas id="gameCanvas" width="800" height="400"></canvas>
 
@@ -108,7 +108,7 @@
         </div>
     </div>
 
-    <div id="message">調整角度與初速，擊中右邊的目標 B 吧！</div>
+    <div id="message">使用鍵盤 WASD 移動角色 A，調整角度與初速，擊中右邊的目標 B 吧！</div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
@@ -124,18 +124,55 @@
         const g = 9.8; 
         const groundY = 330;
         
-        const playerA = { x: 80, y: groundY };
+        // 核心修改：定義大砲的基準點
+        const cannonBase = { x: 80, y: groundY };
+        
+        // 核心修改：角色 A 的位置初始值（相對於大砲基準點偏左）
+        const playerA = { offsetX: -55, offsetY: 0 };
+        const moveSpeed = 5; // 移動速度
+
         let targetB = { x: 650, y: groundY };
 
         let projectile = {
             x: 0, y: 0, v0: 0, angle: 0, t: 0, active: false, trail: []
         };
 
+        // 鍵盤狀態紀錄
+        const keys = {};
+
+        // 監聽鍵盤按下與放開
+        window.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+            // 防止瀏覽器按方向鍵時網頁跟著滾動
+            if(["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(e.key)) {
+                e.preventDefault();
+            }
+        });
+        window.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
+
         angleInput.oninput = () => angleVal.innerText = angleInput.value;
         velocityInput.oninput = () => velocityVal.innerText = velocityInput.value;
 
         function resetTarget() {
             targetB.x = Math.floor(Math.random() * (740 - 450) + 450); 
+        }
+
+        // 處理角色與大砲移動邏輯
+        function handleMovement() {
+            // 左右移動 (A / D 或 左右方向鍵)
+            if (keys['a'] || keys['arrowleft']) {
+                if (cannonBase.x > 30) cannonBase.x -= moveSpeed;
+            }
+            if (keys['d'] || keys['arrowright']) {
+                if (cannonBase.x < 350) cannonBase.x += moveSpeed; // 限制最遠只能走到畫面中間偏左
+            }
+            // 上下移動 (W / S 或 上下方向鍵)
+            if (keys['w'] || keys['arrowup']) {
+                if (playerA.offsetY > -100) playerA.offsetY -= moveSpeed; // 限制往上跳/飛的高度
+            }
+            if (keys['s'] || keys['arrowdown']) {
+                if (playerA.offsetY < 0) playerA.offsetY += moveSpeed; // 回到地面
+            }
         }
 
         function drawScene() {
@@ -162,31 +199,35 @@
                 ctx.setLineDash([]); 
             }
 
-            // 3. 大砲底座與砲管（先畫大砲，才不會蓋住人）
+            // 3. 大砲底座與砲管（隨著 cannonBase 位置改變）
             ctx.fillStyle = '#7f8c8d';
-            ctx.fillRect(playerA.x - 12, groundY - 12, 24, 12); 
+            ctx.fillRect(cannonBase.x - 12, groundY - 12, 24, 12); 
             
             ctx.save();
-            ctx.translate(playerA.x, groundY - 12);
+            ctx.translate(cannonBase.x, groundY - 12);
             const currentRad = -angleInput.value * Math.PI / 180;
             ctx.rotate(currentRad);
             ctx.fillStyle = '#34495e';
             ctx.fillRect(0, -6, 35, 12); 
             ctx.restore();
 
-            // 4. 玩家 A（後畫，且往左移開，確保絕對不被擋住）
+            // 4. 玩家 A（位置會隨著移動加成改變，包含垂直和水平位移）
+            const curAx = cannonBase.x + playerA.offsetX;
+            const curAy = groundY + playerA.offsetY;
+
             ctx.strokeStyle = '#2980b9';
             ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.arc(playerA.x - 55, groundY - 50, 10, 0, Math.PI * 2); 
-            ctx.moveTo(playerA.x - 55, groundY - 40); ctx.lineTo(playerA.x - 55, groundY - 15); 
-            ctx.moveTo(playerA.x - 55, groundY - 30); ctx.lineTo(playerA.x - 35, groundY - 35); 
-            ctx.moveTo(playerA.x - 55, groundY - 15); ctx.lineTo(playerA.x - 65, groundY); 
-            ctx.moveTo(playerA.x - 55, groundY - 15); ctx.lineTo(playerA.x - 45, groundY); 
+            ctx.arc(curAx, curAy - 50, 10, 0, Math.PI * 2); 
+            ctx.moveTo(curAx, curAy - 40); ctx.lineTo(curAx, curAy - 15); 
+            ctx.moveTo(curAx, curAy - 30); ctx.lineTo(curAx + 20, curAy - 35); // 伸出手推大砲的感覺
+            ctx.moveTo(curAx, curAy - 15); ctx.lineTo(curAx - 10, curAy); 
+            ctx.moveTo(curAx, curAy - 15); ctx.lineTo(curAx + 10, curAy); 
             ctx.stroke();
+            
             ctx.fillStyle = '#2980b9';
             ctx.font = 'bold 16px Arial';
-            ctx.fillText("A", playerA.x - 60, groundY - 68);
+            ctx.fillText("A", curAx - 5, curAy - 68);
 
             // 5. 目標 B
             ctx.strokeStyle = '#e74c3c';
@@ -217,8 +258,10 @@
             const theta = angleInput.value * Math.PI / 180;
             const v0 = velocityInput.value;
 
-            projectile.x = playerA.x;
+            // 砲彈從大砲目前的位置發射
+            projectile.x = cannonBase.x;
             projectile.y = groundY - 12;
+            projectile.startX = cannonBase.x; // 記錄發射起點
             projectile.v0 = v0;
             projectile.angle = theta;
             projectile.t = 0;
@@ -242,7 +285,7 @@
             const deltaX = v0 * Math.cos(theta) * t;
             const deltaY = (v0 * Math.sin(theta) * t) - (0.5 * g * t * t);
 
-            projectile.x = playerA.x + deltaX;
+            projectile.x = projectile.startX + deltaX;
             projectile.y = (groundY - 12) - deltaY;
 
             projectile.trail.push({ x: projectile.x, y: projectile.y });
@@ -259,25 +302,26 @@
                 setTimeout(() => {
                     resetTarget();
                     message.innerText = "目標已重置，再試一次吧！";
-                    drawScene();
                 }, 1800);
                 return;
             }
 
             if (projectile.y >= groundY || projectile.x > canvas.width || projectile.x < 0) {
-                message.innerHTML = "❌ <span style='color:red;'>落空了！調整角度或初速再試一次。</span>";
+                message.innerHTML = "❌ <span style='color:red;'>落空了！調整位置、角度再試一次。</span>";
                 projectile.active = false;
                 fireBtn.disabled = false;
                 return;
             }
 
-            drawScene();
-            requestAnimationFrame(updatePhysics);
+            // 飛行中不重複呼叫 drawScene，由主循環處理
         }
 
         resetTarget();
+        
+        // 遊戲主循環：每 30 毫秒同時處理「移動」與「畫面重繪」
         setInterval(() => {
-            if (!projectile.active) drawScene();
+            handleMovement();
+            drawScene();
         }, 30);
     </script>
 </body>
